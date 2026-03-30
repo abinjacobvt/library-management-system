@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Library</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body { background-color: #f8f9fa; }
+        table td, table th {
+            padding: 6px !important;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<!--  NAVBAR -->
+<nav class="navbar navbar-dark bg-dark px-3">
+    <span class="navbar-brand">📚 Library</span>
+
+    <div>
+        <a href="/books" class="btn btn-light btn-sm fw-bold">Books</a>
+
+        <a href="/my-requests"
+           class="btn btn-outline-info btn-sm"
+           th:if="${#authorization.expression('hasRole(''USER'')')}">
+            My Requests
+        </a>
+
+        <a href="/admin/requests"
+           class="btn btn-outline-warning btn-sm"
+           th:if="${#authorization.expression('hasRole(''ADMIN'')')}">
+            Admin Panel
+        </a>
+
+        <form th:action="@{/logout}" method="post" class="d-inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button class="btn btn-danger btn-sm">Logout</button>
+        </form>
+    </div>
+</nav>
+
+<div class="container mt-4">
+
+    <!--  SEARCH -->
+    <form method="get" action="/books" class="row mb-3">
+        <div class="col-md-4">
+            <input class="form-control" type="text" name="keyword" placeholder="Search books..."/>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary">Search</button>
+        </div>
+    </form>
+    <div th:if="${books != null and !#lists.isEmpty(books)}">
+
+        <!--  TABLE VIEW -->
+        <div class="table-responsive">
+
+            <table class="table table-sm table-bordered align-middle">
+
+                <thead class="table-dark">
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                <tr th:each="b : ${books}">
+
+                    <td th:text="${b.title}"></td>
+                    <td th:text="${b.author}"></td>
+
+                    <td>
+
+                        <!-- USER -->
+                        <div th:if="${#authorization.expression('hasRole(''USER'')')}">
+                            <form th:action="@{/borrow}" method="post" class="d-inline">
+                                <input type="hidden" name="bookTitle" th:value="${b.title}"/>
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button class="btn btn-success btn-sm">Borrow</button>
+                            </form>
+                        </div>
+
+                        <!-- ADMIN -->
+                        <div th:if="${#authorization.expression('hasRole(''ADMIN'')')}">
+
+                            <button class="btn btn-warning btn-sm"
+                                    th:onclick="'showEdit(' + ${b.id} + ')'">
+                                Edit
+                            </button>
+
+                            <form th:action="@{'/admin/delete/' + ${b.id}}" method="post" class="d-inline">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+
+                            <!-- EDIT FORM -->
+                            <div th:id="'editForm-' + ${b.id}" style="display:none;" class="mt-1">
+                                <form th:action="@{'/admin/update/' + ${b.id}}" method="post">
+                                    <input class="form-control form-control-sm mb-1" name="title" th:value="${b.title}"/>
+                                    <input class="form-control form-control-sm mb-1" name="author" th:value="${b.author}"/>
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <button class="btn btn-primary btn-sm">Save</button>
+                                </form>
+                            </div>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+                </tbody>
+
+            </table>
+        </div>
+
+        <!-- PAGINATION -->
+        <nav>
+            <ul class="pagination">
+
+                <!-- PREVIOUS -->
+                <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                    <a class="page-link"
+                       th:href="@{/books(page=${currentPage - 1})}">
+                        Previous
+                    </a>
+                </li>
+
+                <!-- PAGE NUMBERS -->
+                <li class="page-item"
+                    th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+                    th:classappend="${i == currentPage} ? 'active'">
+
+                    <a class="page-link"
+                       th:href="@{/books(page=${i})}"
+                       th:text="${i + 1}">
+                    </a>
+                </li>
+
+                <!-- NEXT -->
+                <li class="page-item"
+                    th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
+                    <a class="page-link"
+                       th:href="@{/books(page=${currentPage + 1})}">
+                        Next
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+
+    </div>
+
+    <!--  ADD BOOK -->
+    <div th:if="${#authorization.expression('hasRole(''ADMIN'')')}" class="mt-4">
+        <h4>Add Book</h4>
+
+        <form th:action="@{/admin/add}" method="post" class="row">
+            <div class="col-md-4">
+                <input class="form-control" name="title" placeholder="Title"/>
+            </div>
+            <div class="col-md-4">
+                <input class="form-control" name="author" placeholder="Author"/>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-success">Add</button>
+            </div>
+
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    function showEdit(id) {
+        let form = document.getElementById("editForm-" + id);
+        form.style.display = (form.style.display === "none") ? "block" : "none";
+    }
+</script>
+
+</body>
+</html>
